@@ -2,11 +2,6 @@
 
 > A simple and powerful widget to manage your Zoho Projects tasks directly from Zoho SalesIQ.
 
-![Zoho](https://img.shields.io/badge/Zoho-Projects-orange?style=flat-square)
-![Version](https://img.shields.io/badge/version-1.0.0-blue?style=flat-square)
-![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
-
----
 
 ## ✨ Features
 
