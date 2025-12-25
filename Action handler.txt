@@ -1,0 +1,458 @@
+// ================================
+// ALL-IN-ONE ACTION HANDLER
+// ================================
+portalId = "vishalinik811gmaildotcom";
+projectId = "2602529000000067783";
+info "=== Action Handler Start ===";
+info "Action object: " + action;
+info "Target object: " + target;
+// Get action type and button name
+actionType = action.get("type");
+buttonName = action.get("name");
+// If buttonName is null, check if this is a section click
+if(buttonName == null || buttonName == "")
+{
+	sectionName = target.get("section_name");
+	info "Section clicked: " + sectionName;
+	// Sections don't trigger actions, so we return early
+	response = Map();
+	response.put("type","banner");
+	response.put("status","failure");
+	response.put("text","⚠️ Please click the action buttons, not the section.");
+	return response;
+}
+info "Action Type: " + actionType;
+info "Button Name: " + buttonName;
+// ================================
+// 1️⃣ VIEW TASK DETAILS
+// ================================
+if(buttonName != null && buttonName.startsWith("viewTask_"))
+{
+	taskId = buttonName.replaceFirst("viewTask_","");
+	info "Viewing Task ID: " + taskId;
+	// Get task details
+	taskResponse = invokeurl
+	[
+		url :"https://projectsapi.zoho.com/restapi/portal/" + portalId + "/projects/" + projectId + "/tasks/" + taskId + "/"
+		type :GET
+		connection:"zoho_projects_connection"
+	];
+	info "Task Response: " + taskResponse;
+	if(taskResponse.get("tasks") != null && taskResponse.get("tasks").size() > 0)
+	{
+		task = taskResponse.get("tasks").get(0);
+		// Extract task details
+		taskName = ifnull(task.get("name"),"No Name");
+		taskDesc = ifnull(task.get("description"),"No description available");
+		taskStatus = ifnull(task.get("status").get("name"),"Not Set");
+		taskPriority = ifnull(task.get("priority"),"None");
+		dueDate = ifnull(task.get("end_date"),"No deadline");
+		createdDate = ifnull(task.get("created_time"),"Unknown");
+		// Get task owner
+		taskOwner = "Not assigned";
+		taskDetails = task.get("details");
+		if(taskDetails != null && taskDetails.get("owners") != null && taskDetails.get("owners").size() > 0)
+		{
+			taskOwner = taskDetails.get("owners").get(0).get("name");
+		}
+		// Create detailed form view
+		response = Map();
+		response.put("type","form");
+		response.put("title","📋 Task Details: " + taskName);
+		response.put("name","taskDetailsView");
+		response.put("button_label","✖️ Close");
+		inputs = List();
+		// Task Name
+		nameInput = Map();
+		nameInput.put("name","task_name_display");
+		nameInput.put("label","📝 Task Name");
+		nameInput.put("type","text");
+		nameInput.put("value",taskName);
+		nameInput.put("mandatory",false);
+		nameInput.put("read_only",true);
+		inputs.add(nameInput);
+		// Description
+		descInput = Map();
+		descInput.put("name","task_desc_display");
+		descInput.put("label","📄 Description");
+		descInput.put("type","textarea");
+		descInput.put("value",taskDesc);
+		descInput.put("mandatory",false);
+		descInput.put("read_only",true);
+		inputs.add(descInput);
+		// Status
+		statusInput = Map();
+		statusInput.put("name","task_status_display");
+		statusInput.put("label","🔄 Status");
+		statusInput.put("type","text");
+		statusInput.put("value",taskStatus);
+		statusInput.put("mandatory",false);
+		statusInput.put("read_only",true);
+		inputs.add(statusInput);
+		// Priority
+		priorityInput = Map();
+		priorityInput.put("name","task_priority_display");
+		priorityInput.put("label","⚡ Priority");
+		priorityInput.put("type","text");
+		priorityInput.put("value",taskPriority);
+		priorityInput.put("mandatory",false);
+		priorityInput.put("read_only",true);
+		inputs.add(priorityInput);
+		// Due Date
+		dueDateInput = Map();
+		dueDateInput.put("name","task_due_display");
+		dueDateInput.put("label","📅 Due Date");
+		dueDateInput.put("type","text");
+		dueDateInput.put("value",dueDate);
+		dueDateInput.put("mandatory",false);
+		dueDateInput.put("read_only",true);
+		inputs.add(dueDateInput);
+		// Owner
+		ownerInput = Map();
+		ownerInput.put("name","task_owner_display");
+		ownerInput.put("label","👤 Assigned To");
+		ownerInput.put("type","text");
+		ownerInput.put("value",taskOwner);
+		ownerInput.put("mandatory",false);
+		ownerInput.put("read_only",true);
+		inputs.add(ownerInput);
+		// Task ID
+		idInput = Map();
+		idInput.put("name","task_id_display");
+		idInput.put("label","🔢 Task ID");
+		idInput.put("type","text");
+		idInput.put("value",taskId);
+		idInput.put("mandatory",false);
+		idInput.put("read_only",true);
+		inputs.add(idInput);
+		response.put("inputs",inputs);
+		// ================================
+		// Fetch existing comments for the task
+		// ================================
+		commentResponse = invokeurl
+		[
+			url :"https://projectsapi.zoho.com/restapi/portal/" + portalId + "/projects/" + projectId + "/tasks/" + taskId + "/comments/"
+			type :GET
+			connection:"zoho_projects_connection"
+		];
+		commentsList = List();
+		if(commentResponse.get("comments") != null)
+		{
+			for each  c in commentResponse.get("comments")
+			{
+				commentText = ifnull(c.get("content"),"");
+				commentAuthor = ifnull(c.get("created_by_name"),"Unknown");
+				commentDate = ifnull(c.get("created_time"),"Unknown date");
+				commentsList.add(commentAuthor + " (" + commentDate + "): " + commentText);
+			}
+		}
+		// ================================
+		// Fetch existing comments for the task
+		// ================================
+		commentResponse = invokeurl
+		[
+			url :"https://projectsapi.zoho.com/restapi/portal/" + portalId + "/projects/" + projectId + "/tasks/" + taskId + "/comments/"
+			type :GET
+			connection:"zoho_projects_connection"
+		];
+		// Build comments string
+		commentsText = "";
+		if(commentResponse.get("comments") != null)
+		{
+			for each  c in commentResponse.get("comments")
+			{
+				commentText = ifnull(c.get("content"),"");
+				commentAuthor = ifnull(c.get("created_by_name"),"Unknown");
+				commentDate = ifnull(c.get("created_time"),"Unknown date");
+				commentsText = commentsText + commentAuthor + " (" + commentDate + "): " + commentText + "\n-----------------\n";
+			}
+		}
+		// Add to your inputs list in the View Task form
+		inputs.add({"name":"task_comments_display","label":"💬 Comments","type":"textarea","value":commentsText,"mandatory":false,"read_only":true});
+		// Close action
+		actionMap = Map();
+		actionMap.put("type","invoke.function");
+		actionMap.put("name","closeDetails");
+		response.put("action",actionMap);
+		info "Detailed view response: " + response;
+		return response;
+	}
+	else
+	{
+		response = Map();
+		response.put("type","banner");
+		response.put("status","failure");
+		response.put("text","❌ Task not found: " + taskId);
+		return response;
+	}
+}
+// ================================
+// 2️⃣ ADD COMMENT - SHOW FORM
+// ================================
+else if(buttonName != null && buttonName.startsWith("addComment_"))
+{
+	taskId = buttonName.replaceFirst("addComment_","");
+	info "Opening comment form for Task ID: " + taskId;
+	// First, fetch the task name
+	taskResponse = invokeurl
+	[
+		url :"https://projectsapi.zoho.com/restapi/portal/" + portalId + "/projects/" + projectId + "/tasks/" + taskId + "/"
+		type :GET
+		connection:"zoho_projects_connection"
+	];
+	taskName = "Unknown Task";
+	if(taskResponse.get("tasks") != null && taskResponse.get("tasks").size() > 0)
+	{
+		task = taskResponse.get("tasks").get(0);
+		taskName = ifnull(task.get("name"),"Unknown Task");
+	}
+	// Return form to collect comment
+	response = Map();
+	response.put("type","form");
+	response.put("title","💬 Add Comment");
+	response.put("name","commentForm");
+	response.put("button_label","📤 Submit Comment");
+	response.put("hint","Add your comment for this task");
+	inputs = List();
+	// Task Name (Read-only display)
+	taskNameInput = Map();
+	taskNameInput.put("name","task_name_display");
+	taskNameInput.put("label","📝 Task Name");
+	taskNameInput.put("type","text");
+	taskNameInput.put("value",taskName);
+	taskNameInput.put("read_only",true);
+	taskNameInput.put("mandatory",false);
+	inputs.add(taskNameInput);
+	// Hidden field for task ID
+	taskIdInput = Map();
+	taskIdInput.put("name","task_id");
+	taskIdInput.put("label","🔢 Task ID");
+	taskIdInput.put("type","text");
+	taskIdInput.put("value",taskId);
+	taskIdInput.put("read_only",true);
+	taskIdInput.put("mandatory",true);
+	inputs.add(taskIdInput);
+	// Comment text area
+	commentInput = Map();
+	commentInput.put("name","comment_text");
+	commentInput.put("label","💭 Comment");
+	commentInput.put("type","textarea");
+	commentInput.put("placeholder","Enter your comment here...");
+	commentInput.put("mandatory",true);
+	inputs.add(commentInput);
+	response.put("inputs",inputs);
+	// Action to submit form
+	actionMap = Map();
+	actionMap.put("type","invoke.function");
+	actionMap.put("name","submitComment");
+	response.put("action",actionMap);
+	return response;
+}
+// ================================
+// 3️⃣ SUBMIT COMMENT
+// ================================
+else if(buttonName != null && buttonName.equals("submitComment"))
+{
+	formValues = action.get("form").get("values");
+	taskId = formValues.get("task_id");
+	commentText = formValues.get("comment_text");
+	info "Submitting comment for Task ID: " + taskId;
+	// Post comment to Zoho Projects
+	commentData = Map();
+	commentData.put("content",commentText);
+	commentResponse = invokeurl
+	[
+		url :"https://projectsapi.zoho.com/restapi/portal/" + portalId + "/projects/" + projectId + "/tasks/" + taskId + "/comments/"
+		type :POST
+		parameters:commentData + ""
+		connection:"zoho_projects_connection"
+	];
+	response = Map();
+	response.put("type","banner");
+	if(commentResponse.get("comments") != null && commentResponse.get("error") == null)
+	{
+		response.put("status","success");
+		response.put("text","✅ Comment added successfully!");
+	}
+	else
+	{
+		response.put("status","failure");
+		errorMsg = ifnull(commentResponse.get("error"),"Unknown error");
+		response.put("text","❌ Failed to add comment: " + errorMsg);
+		info "Comment Error: " + commentResponse;
+	}
+	return response;
+}
+// ================================
+// 4️⃣ CREATE NEW TASK - SHOW FORM
+// ================================
+else if(buttonName != null && buttonName.equals("createNewTask"))
+{
+	info "Opening create task form";
+	// First, fetch all users in the project to populate "Assigned To" dropdown
+	usersResponse = invokeurl
+	[
+		url :"https://projectsapi.zoho.com/restapi/portal/" + portalId + "/projects/" + projectId + "/users/"
+		type :GET
+		connection:"zoho_projects_connection"
+	];
+	info "Users Response: " + usersResponse;
+	// Build user options for dropdown
+	userOptions = List();
+	if(usersResponse.get("users") != null)
+	{
+		allUsers = usersResponse.get("users");
+		for each  u in allUsers
+		{
+			userName = u.get("name");
+			userEmail = u.get("email");
+			userId = u.get("id").toString();
+			userOptions.add({"label":"👤 " + userName + " (" + userEmail + ")","value":userId});
+		}
+	}
+	// If no users found, add a default option
+	if(userOptions.size() == 0)
+	{
+		userOptions.add({"label":"❌ No users available","value":"none"});
+	}
+	// Return form to create new task
+	response = Map();
+	response.put("type","form");
+	response.put("title","➕ Create New Task");
+	response.put("name","createTaskForm");
+	response.put("button_label","Create Task");
+	response.put("hint","Fill in the details to create a new task");
+	inputs = List();
+	// Task name
+	nameInput = Map();
+	nameInput.put("name","task_name");
+	nameInput.put("label","📝 Task Name");
+	nameInput.put("type","text");
+	nameInput.put("placeholder","Enter task name");
+	nameInput.put("mandatory",true);
+	inputs.add(nameInput);
+	// Task description
+	descInput = Map();
+	descInput.put("name","task_description");
+	descInput.put("label","📄 Description");
+	descInput.put("type","textarea");
+	descInput.put("placeholder","Enter task description");
+	descInput.put("mandatory",false);
+	inputs.add(descInput);
+	// Priority dropdown
+	priorityInput = Map();
+	priorityInput.put("name","task_priority");
+	priorityInput.put("label","⚡ Priority");
+	priorityInput.put("type","select");
+	priorityInput.put("mandatory",true);
+	priorityOptions = List();
+	priorityOptions.add({"label":"🔴 High","value":"High"});
+	priorityOptions.add({"label":"🟡 Medium","value":"Medium"});
+	priorityOptions.add({"label":"🟢 Low","value":"Low"});
+	priorityInput.put("options",priorityOptions);
+	inputs.add(priorityInput);
+	// Due Date
+	dueDateInput = Map();
+	dueDateInput.put("name","task_due_date");
+	dueDateInput.put("label","📅 Due Date");
+	dueDateInput.put("type","date");
+	dueDateInput.put("mandatory",false);
+	inputs.add(dueDateInput);
+	// Assigned To dropdown
+	assignedInput = Map();
+	assignedInput.put("name","task_assigned_to");
+	assignedInput.put("label","👤 Assigned To");
+	assignedInput.put("type","select");
+	assignedInput.put("mandatory",false);
+	assignedInput.put("options",userOptions);
+	inputs.add(assignedInput);
+	response.put("inputs",inputs);
+	// Action to submit form
+	actionMap = Map();
+	actionMap.put("type","invoke.function");
+	actionMap.put("name","submitNewTask");
+	response.put("action",actionMap);
+	return response;
+}
+// ================================
+// 5️⃣ SUBMIT NEW TASK
+// ================================
+else if(buttonName != null && buttonName.equals("submitNewTask"))
+{
+	formValues = action.get("form").get("values");
+	taskName = formValues.get("task_name");
+	taskDesc = formValues.get("task_description");
+	taskPriority = formValues.get("task_priority");
+	taskDueDate = formValues.get("task_due_date");
+	taskAssignedTo = formValues.get("task_assigned_to");
+	info "Creating new task: " + taskName;
+	info "Due Date: " + taskDueDate;
+	info "Assigned To User ID: " + taskAssignedTo;
+	// Create task in Zoho Projects
+	taskData = Map();
+	taskData.put("name",taskName);
+	if(taskDesc != null && taskDesc != "")
+	{
+		taskData.put("description",taskDesc);
+	}
+	taskData.put("priority",taskPriority);
+	// Add due date if provided (format: MM-DD-YYYY)
+	if(taskDueDate != null && taskDueDate != "" && taskDueDate != "none")
+	{
+		taskData.put("end_date",taskDueDate);
+	}
+	// Add assigned user if selected
+	if(taskAssignedTo != null && taskAssignedTo != "" && taskAssignedTo != "none")
+	{
+		taskData.put("details",{"owners":{{"id":taskAssignedTo}}});
+	}
+	info "Task Data to send: " + taskData;
+	createResponse = invokeurl
+	[
+		url :"https://projectsapi.zoho.com/restapi/portal/" + portalId + "/projects/" + projectId + "/tasks/"
+		type :POST
+		parameters:taskData + ""
+		connection:"zoho_projects_connection"
+	];
+	info "Create Response: " + createResponse;
+	response = Map();
+	response.put("type","banner");
+	if(createResponse.get("tasks") != null && createResponse.get("error") == null)
+	{
+		response.put("status","success");
+		response.put("text","✅ Task '" + taskName + "' created successfully!");
+	}
+	else
+	{
+		response.put("status","failure");
+		errorMsg = ifnull(createResponse.get("error"),"Unknown error");
+		response.put("text","❌ Failed to create task: " + errorMsg);
+		info "Create Task Error: " + createResponse;
+	}
+	return response;
+}
+// ================================
+// 6️⃣ CLOSE DETAILS VIEW
+// ================================
+else if(buttonName != null && buttonName.equals("closeDetails"))
+{
+	info "Closing details view";
+	response = Map();
+	response.put("type","banner");
+	response.put("status","success");
+	response.put("text","✅ Task details closed");
+	return response;
+}
+// ================================
+// 7️⃣ DEFAULT RESPONSE
+// ================================
+else
+{
+	info "Unknown button: " + buttonName;
+	response = Map();
+	response.put("type","banner");
+	response.put("status","failure");
+	response.put("text","❌ Invalid action: " + buttonName);
+	return response;
+}
+info "=== Action Handler Completed ===";

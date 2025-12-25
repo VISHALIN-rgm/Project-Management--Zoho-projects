@@ -1,0 +1,61 @@
+portalId = "vishalinik811gmaildotcom";
+projectId = "2602529000000067783";
+info "=== submitComment Form Handler Start ===";
+info "Form object: " + form;
+// Extract values from form meta
+formValues = form.get("values");
+taskId = formValues.get("task_id").get("value");
+commentText = formValues.get("comment_text").get("value");
+info "Task ID: " + taskId;
+info "Comment Text: " + commentText;
+// Validation
+if(taskId == null || taskId == "")
+{
+	response = Map();
+	response.put("type","banner");
+	response.put("status","failure");
+	response.put("text","❌ Task ID missing!");
+	return response;
+}
+if(commentText == null || commentText == "")
+{
+	response = Map();
+	response.put("type","banner");
+	response.put("status","failure");
+	response.put("text","❌ Comment cannot be empty!");
+	return response;
+}
+// JSON body
+commentData = Map();
+commentData.put("content",commentText);
+info "Comment Data: " + commentData;
+// Correct POST request
+commentResponse = invokeurl
+[
+	url :"https://projectsapi.zoho.com/restapi/portal/" + portalId + "/projects/" + projectId + "/tasks/" + taskId + "/comments/"
+	type :POST
+	parameters:commentData
+	connection:"zoho_projects_connection"
+];
+info "Comment API Response: " + commentResponse;
+// Build response
+response = Map();
+response.put("type","banner");
+if(commentResponse.get("comments") != null)
+{
+	response.put("status","success");
+	response.put("text","✅ Comment added successfully!");
+}
+else
+{
+	errorMsg = "Unknown error";
+	if(commentResponse.get("error") != null)
+	{
+		errorMsg = commentResponse.get("error");
+	}
+	response.put("status","failure");
+	response.put("text","❌ Failed: " + errorMsg);
+	info "Comment Error Details: " + commentResponse;
+}
+info "=== submitComment Form Handler End ===";
+return response;

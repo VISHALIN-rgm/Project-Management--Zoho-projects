@@ -1,0 +1,120 @@
+
+// ====================================
+// submitNewTask Form Handler
+// ====================================
+portalId = "vishalinik811gmaildotcom";
+projectId = "2602529000000067783";
+info "=== submitNewTask Form Handler Start ===";
+// =========================
+// EXTRACT FORM VALUES
+// =========================
+formValues = form.get("values");
+info "Raw formValues: " + formValues;
+// Task Name
+taskName = "";
+if(formValues.get("task_name") != null)
+{
+	taskName = formValues.get("task_name").get("value");
+}
+// Description
+taskDesc = "";
+if(formValues.get("task_description") != null)
+{
+	taskDesc = formValues.get("task_description").get("value");
+}
+// Priority
+taskPriority = "Medium";
+if(formValues.get("task_priority") != null)
+{
+	priorityObj = formValues.get("task_priority").get("value");
+	if(priorityObj.containKey("value"))
+	{
+		taskPriority = priorityObj.get("value");
+	}
+	else
+	{
+		taskPriority = priorityObj;
+	}
+}
+// Due Date
+taskDueDate = "";
+if(formValues.get("task_due_date") != null)
+{
+	taskDueDate = formValues.get("task_due_date").get("value");
+}
+// Assigned To
+assignedToId = "";
+if(formValues.get("task_assigned_to") != null)
+{
+	assignedObj = formValues.get("task_assigned_to").get("value");
+	if(assignedObj.containKey("value"))
+	{
+		assignedToId = assignedObj.get("value");
+	}
+	else
+	{
+		assignedToId = assignedObj;
+	}
+}
+// =========================
+// VALIDATE REQUIRED FIELDS
+// =========================
+if(taskName == "" || taskName == null)
+{
+	return {"type":"banner","status":"error","text":"❌ Task name is required!","action":"close"};
+}
+// =========================
+// CREATE TASK PAYLOAD
+// =========================
+taskData = Map();
+taskData.put("name",taskName);
+if(taskDesc != null && taskDesc != "")
+{
+	taskData.put("description",taskDesc);
+}
+if(taskPriority != null && taskPriority != "")
+{
+	taskData.put("priority",taskPriority);
+}
+if(taskDueDate != null && taskDueDate != "")
+{
+	dateParts = taskDueDate.toList("-");
+	formattedDate = dateParts.get(1) + "-" + dateParts.get(2) + "-" + dateParts.get(0);
+	taskData.put("end_date",formattedDate);
+}
+if(assignedToId != null && assignedToId != "")
+{
+	taskData.put("person_responsible",assignedToId);
+}
+// =========================
+// CREATE TASK VIA API
+// =========================
+try 
+{
+	apiUrl = "https://projectsapi.zoho.com/restapi/portal/" + portalId + "/projects/" + projectId + "/tasks/";
+	createResponse = invokeurl
+	[
+		url :apiUrl
+		type :POST
+		parameters:taskData
+		connection:"zoho_projects_connection"
+	];
+	if(createResponse.get("tasks") != null)
+	{
+		newTask = createResponse.get("tasks").get(0);
+		taskId = newTask.get("id").toString();
+		taskLink = newTask.get("link").get("web").get("url");
+		// ✅ Return proper banner for SalesIQ
+		return {"type":"banner","status":"success","text":"✅ Task '" + taskName + "' created successfully!","action":"close","link":taskLink};
+	}
+	else if(createResponse.get("error") != null)
+	{
+		errorMsg = createResponse.get("error").get("message");
+		return {"type":"banner","status":"error","text":"❌ Error: " + errorMsg,"action":"close"};
+	}
+}
+catch (e)
+{
+	return {"type":"banner","status":"error","text":"❌ Failed to create task. Please try again.","action":"close"};
+}
+return {"type":"banner","status":"error","text":"❌ Unexpected error occurred","action":"close"};

@@ -1,0 +1,179 @@
+portalId = "vishalinik811gmaildotcom";
+projectId = "2602529000000067783";
+info "=== Detail Handler Start ===";
+// =========================
+// GET VISITOR EMAIL
+// =========================
+visitorEmail = "";
+if(context != null)
+{
+	ctxData = context.get("data");
+	if(ctxData != null)
+	{
+		visitorEmail = ctxData.get("email_id");
+		if(visitorEmail == null || visitorEmail == "")
+		{
+			visitorEmail = "Not Provided";
+		}
+	}
+}
+info "Visitor Email: " + visitorEmail;
+// =========================
+// FETCH TASKS
+// =========================
+tasksResponse = invokeurl
+[
+	url :"https://projectsapi.zoho.com/restapi/portal/" + portalId + "/projects/" + projectId + "/tasks/"
+	type :GET
+	connection:"zoho_projects_connection"
+];
+allTasks = List();
+userTasks = List();
+if(tasksResponse.get("tasks") != null)
+{
+	allTasks = tasksResponse.get("tasks");
+	for each  t in allTasks
+	{
+		taskDetails = t.get("details");
+		ownerEmail = "";
+		if(taskDetails != null)
+		{
+			owners = taskDetails.get("owners");
+			if(owners != null && owners.size() > 0)
+			{
+				ownerEmail = owners.get(0).get("email");
+			}
+		}
+		if(ownerEmail != null && visitorEmail != null && ownerEmail.equalsIgnoreCase(visitorEmail))
+		{
+			userTasks.add(t);
+		}
+	}
+}
+info "User Tasks Count: " + userTasks.size();
+// =========================
+// CATEGORIZE TASKS BY STATUS
+// =========================
+openTasks = List();
+inProgressTasks = List();
+completedTasks = List();
+for each  t in userTasks
+{
+	tStatus = ifnull(t.get("status").get("name"),"Not Set");
+	if(tStatus.equalsIgnoreCase("Open") || tStatus.equalsIgnoreCase("Not Set"))
+	{
+		openTasks.add(t);
+	}
+	else if(tStatus.equalsIgnoreCase("In Progress"))
+	{
+		inProgressTasks.add(t);
+	}
+	else if(tStatus.equalsIgnoreCase("Completed") || tStatus.equalsIgnoreCase("Closed"))
+	{
+		completedTasks.add(t);
+	}
+}
+// =========================
+// BUILD RESPONSE
+// =========================
+response = Map();
+response.put("type","widget_detail");
+sections = List();
+// =========================
+// SECTION 1: OVERVIEW (Email & Total Tasks)
+// =========================
+overviewSec = Map();
+overviewSec.put("name","user_overview");
+overviewSec.put("layout","metric");
+overviewSec.put("title","📌 Task Overview");
+ovData = List();
+ovData.add({"label":"Email","value":visitorEmail});
+ovData.add({"label":"Total Tasks","value":userTasks.size().toString()});
+overviewSec.put("data",ovData);
+sections.add(overviewSec);
+// =========================
+// SECTION 1.5: TASK STATUS BREAKDOWN
+// =========================
+statusSec = Map();
+statusSec.put("name","task_status_breakdown");
+statusSec.put("layout","metric");
+statusSec.put("title","📊 Task Status");
+statusData = List();
+statusData.add({"label":"Open","value":openTasks.size().toString()});
+statusData.add({"label":"In Progress","value":inProgressTasks.size().toString()});
+statusData.add({"label":"Completed","value":completedTasks.size().toString()});
+statusSec.put("data",statusData);
+sections.add(statusSec);
+// =========================
+// SECTION 2: TASK LIST
+// =========================
+if(userTasks.size() > 0)
+{
+	taskCounter = 1;
+	for each  t in userTasks
+	{
+		tName = t.get("name");
+		tId = t.get("id").toString();
+		tStatus = ifnull(t.get("status").get("name"),"Not Set");
+		taskSec = Map();
+		taskSec.put("name","task_" + tId);
+		taskSec.put("layout","info");
+		taskSec.put("title","📝 " + tName);
+		// Add empty data list to avoid mandatory field error
+		taskData = List();
+		taskSec.put("data",taskData);
+		// Actions
+		actionsList = List();
+		// View Details Button
+		viewBtn = Map();
+		viewBtn.put("label","👁️ View Details");
+		viewBtn.put("type","invoke.function");
+		viewBtn.put("name","viewTask_" + tId);
+		actionsList.add(viewBtn);
+		// Add Comment Button
+		if(tStatus.equalsIgnoreCase("In Progress"))
+		{
+			commentBtn = Map();
+			commentBtn.put("label","💬 Add Comment");
+			commentBtn.put("type","invoke.function");
+			commentBtn.put("name","addComment_" + tId);
+			actionsList.add(commentBtn);
+		}
+		taskSec.put("actions",actionsList);
+		sections.add(taskSec);
+		taskCounter = taskCounter + 1;
+	}
+}
+else
+{
+	emptySec = Map();
+	emptySec.put("name","no_tasks");
+	emptySec.put("layout","empty");
+	emptySec.put("title","🎉 No Tasks Assigned");
+	emptySec.put("text","You currently have no tasks assigned.");
+	sections.add(emptySec);
+}
+// =========================
+// SECTION 3: QUICK ACTIONS
+// =========================
+quickSec = Map();
+quickSec.put("name","quick_actions");
+quickSec.put("layout","metric");
+quickSec.put("title","⚡ Quick Actions");
+qData = List();
+qData.add({"label":"Create","value":"New"});
+quickSec.put("data",qData);
+qAct = List();
+createBtn = Map();
+createBtn.put("label","➕ Create Task");
+createBtn.put("type","invoke.function");
+createBtn.put("name","createNewTask");
+qAct.add(createBtn);
+quickSec.put("actions",qAct);
+sections.add(quickSec);
+// =========================
+// FINAL RESPONSE
+// =========================
+response.put("sections",sections);
+info "=== Detail Handler Completed ===";
+return response;
